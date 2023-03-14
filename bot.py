@@ -32,7 +32,8 @@ async def on_message(message):
         return
 
     response = get_response(message, messages, sentiment_pipeline)
-    # Send the response to the channel
-    await message.channel.send(response)
+
+    if response:
+        await message.channel.send(response)
 
 client.run(TOKEN)

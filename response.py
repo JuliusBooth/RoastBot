@@ -63,5 +63,6 @@ def get_response(message, past_messages, sentiment_pipeline):
     sentiment = sentiment_pipeline(data)
     print(response, sentiment)
     if sentiment[0]["label"] == "POSITIVE" and sentiment[0]["score"] > 0.98:
-        return
+        return ""
+    return response
 
