@@ -1,6 +1,6 @@
 import discord
 from transformers import pipeline
-from Messages import Messages
+from Messages import MessageCounts,RecentMessages
 from response import get_response
 from config import TOKEN
 
@@ -19,19 +19,21 @@ async def on_ready():
             print(member.name, member)
 
 reply_list = ["RamblingAnthonyBot", "Anthonycsikos"]
+guild_names = ["julius's test server"]#, "julius's test server 2"]
 
-messages = Messages()
+messageCounts = MessageCounts()
+messageHistory = RecentMessages()
 
 @client.event
 async def on_message(message):
     # don't respond to messages from the bot itself
     if message.author == client.user:
         return
-    # respond to messages from julius's test server or anyone in the reply_list
-    if message.guild.name != "julius's test server" and message.author.name not in reply_list:
+    # respond to messages from julius's test servers or anyone in the reply_list
+    if message.guild.name not in guild_names and message.author.name not in reply_list:
         return
 
-    response = get_response(message, messages, sentiment_pipeline)
+    response = get_response(message, messageCounts,messageHistory, sentiment_pipeline)
 
     if response:
         await message.channel.send(response)
