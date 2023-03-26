@@ -2,7 +2,7 @@ import collections
 import datetime
 
 class RecentMessages:
-    def __init__(self, save_time_mins=2, max_word_count=8):
+    def __init__(self, save_time_mins=4, max_word_count=8):
         self.save_time_mins = save_time_mins
         self.max_word_count = max_word_count
         self.message_history = collections.defaultdict(list)
