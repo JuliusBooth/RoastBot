@@ -1,43 +1,14 @@
-import random
 import openai
 from config import OPEN_AI_KEY
 
 openai.api_key = OPEN_AI_KEY
 
-model_engine = "text-davinci-003"
-
-# A bunch of one or two word negative responses
-negative_responses = [
-    "no",
-    "nah",
-    "I'll take no for 200$ Alex",
-    "nope",
-    "nah trick",
-    "you playin",
-    "you playin bro",
-    "you playin bro?",
-    "that ain't it king",
-    "that ain't it chief",
-    "negatory",
-    "negative",
-    "nay",
-    "u trippin",
-    "u trippin bro",
-    "u wot m8?",
-    "wut",
-    "dat's cray cray",
-    "respectfully disagree sir",
-    "I agree... jk can you imagine tho, like what if I did?! You'd be like the robot has lost his damn mind",
-    "wrong"]
+def mentions_bot(message):
+    # checks if the words openai or language model are in the message
+    return "openai" in message.content.lower() or "language model" in message.content.lower() or "julius" in message.content.lower()
 
 def get_response(message, messageCounts,messageHistory, sentiment_pipeline):
-
     print("Message from %s: %s" % (message.author, message.content))
-    num_words = len(message.content.split())
-    # if there are fewer than 6 words in the message, don't respond
-    if num_words > 500:
-        # random negative response
-        return random.choice(negative_responses)
 
     concatenated_message = messageHistory.get_response(message)
     if concatenated_message:
@@ -50,25 +21,26 @@ def get_response(message, messageCounts,messageHistory, sentiment_pipeline):
         return
     messageCounts.increment_author_message_count(message.author)
 
-    max_tokens = 50
+    response = openai.ChatCompletion.create(
+    model="gpt-3.5-turbo",
+    messages=[
+        {"role": "system", "content": "You are an insult comedian who disagrees with anything I say in a concise, humorous way."},
+        {"role": "user", "content": "Canadian banks will never fail until either the great redistribution or the WW3 where we lose to China and Russia"},
+        {"role": "assistant", "content": "The Canadian banks could fail at anytime. It doesn't matter though because you'll be broke either way."},
+        {"role": "user", "content": "Does anyone want to come over for a bbq under my cherry blossom tree?"},
+        {"role": "assistant", "content": "Sorry I'm not interested in recreating your Miyazaki film fantasy."},
+        {"role": "user", "content": "%s" % concatenated_message}
+    ]
+)
 
-    prompt = "You are a very disagreeable, mean spirited person. Your friend Anthony just said '%s'. Tell him why you disagree in under 30 words." % concatenated_message
-    # Generate a response
-    completion = openai.Completion.create(
-        engine=model_engine,
-        prompt=prompt,
-        max_tokens=max_tokens,
-        temperature=0.5,
-        top_p=1,
-        frequency_penalty=0,
-        presence_penalty=0
-    )
+    response = response['choices'][0]['message']['content']
 
-    response = completion.choices[0].text
     data = [response]
     sentiment = sentiment_pipeline(data)
     print(response, sentiment)
-    if sentiment[0]["label"] == "POSITIVE" and sentiment[0]["score"] > 0.98:
+    if mentions_bot(message):
         return ""
+    # if sentiment[0]["label"] == "POSITIVE" and sentiment[0]["score"] > 0.999:
+    #     return ""
     return response
 
