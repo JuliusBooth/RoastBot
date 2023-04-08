@@ -1,13 +1,18 @@
 import openai
-from config import OPEN_AI_KEY
+from src.config import OPEN_AI_KEY, messageCounts, messageHistory, messageBlacklist, responseBlacklist
 
 openai.api_key = OPEN_AI_KEY
 
-def mentions_bot(message):
-    # checks if the words openai or language model are in the message
-    return "openai" in message.content.lower() or "language model" in message.content.lower() or "julius" in message.content.lower()
+def mentions_blacklisted_words(response, blacklist):
+    return any(word in response.lower() for word in blacklist)
 
-def get_response(message, messageCounts,messageHistory, sentiment_pipeline):
+def should_generate_response(message):
+    return messageCounts.get_author_message_count(message.author) < 50 and len(message.content) < 500 and not mentions_blacklisted_words(message.content, messageBlacklist)
+
+def should_send_response(response):
+    return not mentions_blacklisted_words(response, responseBlacklist)
+
+def get_response(message):
     print("Message from %s: %s" % (message.author, message.content))
 
     concatenated_message = messageHistory.get_response(message)
@@ -16,9 +21,9 @@ def get_response(message, messageCounts,messageHistory, sentiment_pipeline):
     else:
         return ""
 
-    # if number of messages sent today > 50, don't respond
-    if messageCounts.get_author_message_count(message.author) > 50:
-        return
+    if not should_generate_response(message):
+        return ""
+
     messageCounts.increment_author_message_count(message.author)
 
     response = openai.ChatCompletion.create(
@@ -32,15 +37,11 @@ def get_response(message, messageCounts,messageHistory, sentiment_pipeline):
         {"role": "user", "content": "%s" % concatenated_message}
     ]
 )
-
     response = response['choices'][0]['message']['content']
 
-    data = [response]
-    sentiment = sentiment_pipeline(data)
-    print(response, sentiment)
-    if mentions_bot(message):
-        return ""
-    # if sentiment[0]["label"] == "POSITIVE" and sentiment[0]["score"] > 0.999:
-    #     return ""
-    return response
+    print("Response: %s" % response)
+
+    if should_send_response(response):
+        return response
+    return ""
 
