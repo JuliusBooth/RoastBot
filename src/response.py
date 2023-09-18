@@ -1,47 +1,51 @@
 import openai
-from src.config import OPEN_AI_KEY, messageCounts, messageHistory, messageBlacklist, responseBlacklist
+from src.config import OPEN_AI_KEY, messageBlacklist, responseBlacklist,REPLACEMENT_NAME
+from src.discord_history import get_recent_messages, clean_up_author_name
 
 openai.api_key = OPEN_AI_KEY
 
 def mentions_blacklisted_words(response, blacklist):
     return any(word in response.lower() for word in blacklist)
 
-def should_generate_response(message):
-    return messageCounts.get_author_message_count(message.author) < 50 and len(message.content) < 500 and not mentions_blacklisted_words(message.content, messageBlacklist)
+def should_generate_response(last_message, concatenated_recent_messages):
+    MESSAGE_MIN_LENGTH = 20
+    MESSAGE_MAX_LENGTH = 2000
+    MAX_RESPONSES = 2
+    return concatenated_recent_messages.count(REPLACEMENT_NAME) <= MAX_RESPONSES  and len(last_message) > MESSAGE_MIN_LENGTH and len(concatenated_recent_messages) < MESSAGE_MAX_LENGTH and not mentions_blacklisted_words(last_message, messageBlacklist)
 
 def should_send_response(response):
     return not mentions_blacklisted_words(response, responseBlacklist)
 
-def get_response(message):
-    print("Message from %s: %s" % (message.author, message.content))
+def prompt_for_response(concatenated_message, victim):
+    response = openai.ChatCompletion.create(
+        model="gpt-4",
+        messages=[
+            {"role": "system", "content": f"You are an insult comedian in a discord chat, who disagrees with anything {victim} says in a concise, humorous way. Don't use metaphors or similes in the insult. Only insult {victim}."},
+            {"role": "user", "content": "%s" % concatenated_message}
 
-    concatenated_message = messageHistory.get_response(message)
-    if concatenated_message:
-        print("Concatenated message: %s" % concatenated_message)
+        ]
+    )
+    print(response)
+    return response['choices'][0]['message']['content']
+
+
+async def get_response(last_message):
+    originating_channel = last_message.channel
+    print("Message from %s in channel %s: %s" % (last_message.author, originating_channel, last_message.content))
+    
+    concatenated_recent_messages = await get_recent_messages(originating_channel, 10)
+
+    if concatenated_recent_messages:
+        print("Concatenated message: %s" % concatenated_recent_messages)
     else:
         return ""
 
-    if not should_generate_response(message):
-        return ""
+    if should_generate_response(last_message.content, concatenated_recent_messages):
+        response = prompt_for_response(concatenated_recent_messages, clean_up_author_name(last_message.author))
 
-    messageCounts.increment_author_message_count(message.author)
+        print("Response: %s" % response)
 
-    response = openai.ChatCompletion.create(
-    model="gpt-3.5-turbo",
-    messages=[
-        {"role": "system", "content": "You are an insult comedian who disagrees with anything I say in a concise, humorous way."},
-        {"role": "user", "content": "Canadian banks will never fail until either the great redistribution or the WW3 where we lose to China and Russia"},
-        {"role": "assistant", "content": "The Canadian banks could fail at anytime. It doesn't matter though because you'll be broke either way."},
-        {"role": "user", "content": "Does anyone want to come over for a bbq under my cherry blossom tree?"},
-        {"role": "assistant", "content": "Sorry I'm not interested in recreating your Miyazaki film fantasy."},
-        {"role": "user", "content": "%s" % concatenated_message}
-    ]
-)
-    response = response['choices'][0]['message']['content']
-
-    print("Response: %s" % response)
-
-    if should_send_response(response):
-        return response
+        if should_send_response(response):
+            return response
     return ""
 

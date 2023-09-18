@@ -2,7 +2,6 @@ import os
 import json
 from getpass import getpass
 from dotenv import load_dotenv
-from src.Messages import MessageCounts, RecentMessages
 
 load_dotenv()
 
@@ -16,19 +15,19 @@ if os.getenv('DISCORD_TOKEN') is None:
 else:
     TOKEN = os.getenv('DISCORD_TOKEN')
 
-messageCounts = MessageCounts()
-messageHistory = RecentMessages()
-
 data= {}
-if os.path.exists('config.json'):
-    with open('config.json') as f:
-        data = json.load(f)
-elif os.path.exists('src/config.json'):
-    with open('src/config.json') as f:
-        data = json.load(f)
-        
-responseBlacklist = data.get('responseBlacklist', [])
-messageBlacklist = data.get('messageBlacklist', [])
-guildNames = data.get('guildNames', [])
-replyList = data.get('replyList', [])
+
+current_dir = os.path.dirname(os.path.realpath(__file__))
+CONFIG_NAME = 'config.json'
+CONFIG_PATH =os.path.join(current_dir, CONFIG_NAME)
+if os.path.exists(CONFIG_PATH):
+    with open(CONFIG_PATH) as f:
+        config = json.load(f)
+
+responseBlacklist = config.get('responseBlacklist', [])
+messageBlacklist = config.get('messageBlacklist', [])
+guildNames = config.get('guildNames', [])
+replyList = config.get('replyList', [])
+botName = config.get('botName', '')
+REPLACEMENT_NAME = "Insult Comedian"
 
